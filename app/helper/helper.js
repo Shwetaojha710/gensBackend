@@ -207,5 +207,31 @@ Helper.applySandwichRule = (leaveRecords, holidays, startDate, endDate) => {
   return updatedRecords;
 };
 
+Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
+  const toRemove = [];
+
+  leaveBalanceArr.forEach((balance) => {
+    const allowed = balance.remainingLeaves ?? 0;
+
+    // Find matching leave records for same employee + leaveType
+    const matchingRecords = leaveRecordsArr.filter(
+      (rec) =>
+        rec.employeeId == balance.employeeId &&
+        rec.leaveTypeId == balance.leaveTypeId
+    );
+
+    if (matchingRecords.length > allowed) {
+      // Sort by fromDate (oldest first)
+      const sorted = [...matchingRecords].sort(
+        (a, b) => new Date(a.fromDate) - new Date(b.fromDate)
+      );
+
+      // Mark extra ones for removal
+      toRemove.push(...sorted.slice(allowed));
+    }
+  });
+
+  return toRemove;
+}
 
 module.exports = Helper;
