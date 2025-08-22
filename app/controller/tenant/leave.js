@@ -194,7 +194,7 @@ exports.getLeaveByEmployee = async (req, res) => {
         }
     } catch (error) {
         console.error("Error fetching leave balance:", error);
-        return Helper.response(false, "Internal server error.", [], res, 500);
+        return Helper.response(false, error?.message, [], res, 500);
     }
 
 }
@@ -232,7 +232,7 @@ exports.applyForLeave = async (req, res) => {
         return Helper.response(false, "Failed to apply for leave.", [], res, 400);
     } catch (error) {
         console.error("Error applying for leave:", error);
-        return Helper.response(false, "Internal server error.", [], res, 500);
+        return Helper.response(false, error?.message, [], res, 500);
     }
 }
 
@@ -249,13 +249,15 @@ exports.getAppliedLeaves = async (req, res) => {
             const employee = await empPersonal.findByPk(r.employeeId, { attributes: ['firstName', 'lastName', 'email'] });
             const leaveType = await leaveMaster.findByPk(r.leaveTypeId)
             return {
+                leaveTypeId:r?.leaveTypeId,
                 id:r?.id,
                 employeeId:r?.employeeId,
                 employeeName: `${employee.firstName} ${employee.lastName}`,
                 employeeEmail: employee.email,
                 appliedOn: r.appliedOn,
                 reason: r.reason,
-                duration_type: r.duration_type === 'full' ? 'Full Day' : r.duration_type === 'first_half' ? 'First Half' : 'Second Half',
+                duration_type_name: r.duration_type === 'full' ? 'Full Day' : r.duration_type === 'first_half' ? 'First Half' : 'Second Half',
+                duration_type:r?.duration_type,
                 fromDate: r.fromDate,
                 toDate: r.toDate,
                 days: r.days,
@@ -273,5 +275,30 @@ exports.getAppliedLeaves = async (req, res) => {
     } catch (error) {
         console.error("Error fetching applied leaves:", error);
         return Helper.response(false, "Internal server error.", [], res, 500);
+    }
+}
+
+
+
+exports.updatedApplyLeaveStatus = async (req, res) => {
+    const { id, employeeId, leaveType, status,reason } = req.body
+    const tenantId = req.users && req.users.tenantId;
+    try {
+
+        const existingLeave = await leave_application.findOne({ where: { id } })
+
+
+        existingLeave.status = status
+        existingLeave.reason = reason
+        existingLeave.updatedBy = req.users && req.users.id
+
+
+        if (await existingLeave.save()) {
+            return Helper.response(true, "Leave updated successfully.", existingLeave, res, 200);
+        }
+        return Helper.response(false, "Failed to create leave.", [], res, 400);
+    } catch (error) {
+        console.error("Error creating leaves:", error);
+        return Helper.response(false, error?.message, [], res, 500);
     }
 }

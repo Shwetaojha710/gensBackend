@@ -11,7 +11,9 @@ const port = process.env.SERVER_PORT || 9000
 app.use(express.json())
 
 app.use(cors({
-  origin: 'http://192.168.23.25:4200',
+  origin: (origin, callback) => {
+    callback(null, origin || true);
+  },
   credentials: true
 }));
 

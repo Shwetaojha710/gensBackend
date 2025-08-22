@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../connection/connection");
 
-const documentType = sequelize.define("documentType", {
+const HolidayType = sequelize.define('HolidayType', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -11,9 +11,13 @@ const documentType = sequelize.define("documentType", {
         type: DataTypes.UUID,
         allowNull: false
     },
-    type: {
+    name: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: false
+    },
+    status: {
+        type: DataTypes.ENUM('active', 'inactive'),
+        defaultValue: 'active'
     },
     createdBy: {
         type: DataTypes.UUID,
@@ -22,20 +26,13 @@ const documentType = sequelize.define("documentType", {
     updatedBy: {
         type: DataTypes.UUID,
         allowNull: true
-    },
-    status:{
-        type: DataTypes.ENUM("active", "inactive"),
-        defaultValue: "active",
-        allowNull: false
     }
-}, { 
-    timestamps: true,
 })
 
-// sequelize.sync({ alter: true }).then(() => {
-//     console.log('DocumentType model synced successfully');
+// HolidayType.sync().then(() => {
+//     console.log('HolidayType model synced successfully');
 // }).catch((error) => {
-//     console.error('Error syncing DocumentType model:', error);
+//     console.error('Error syncing HolidayType model:', error);
 // });
 
-module.exports = documentType;
+module.exports = HolidayType;

@@ -73,7 +73,7 @@ exports.updateDocumentType = async (req, res) => {
         return Helper.response(true, "Document Type updated successfully", documentTypeToUpdate, res, 200);
     } catch (error) {
         console.error("Error updating document type:", error);
-        return Helper.response(false, "Internal server error", null, res, 500);
+        return Helper.response(false,error?.message, null, res, 500);
     }
 }
 

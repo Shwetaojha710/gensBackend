@@ -1,6 +1,6 @@
 const express = require('express');
 const Admin = require('../middleware/auth');
-const { createLeave, getLeaves, updatedLeave, destroy, assignLeave, getLeaveTypes, getLeaveByEmployee, applyForLeave, getAppliedLeaves } = require('../controller/tenant/leave');
+const { createLeave, getLeaves, updatedLeave, destroy, assignLeave, getLeaveTypes, getLeaveByEmployee, applyForLeave, getAppliedLeaves, updatedApplyLeaveStatus } = require('../controller/tenant/leave');
 
 const router = express.Router();
 
@@ -14,5 +14,6 @@ router.post('/assign-leave',Admin,assignLeave)
 router.post('/get-leave-type-dd',Admin,getLeaveTypes)
 router.post('/get-leave-by-emp',Admin,getLeaveByEmployee)
 router.post('/apply-leave',Admin,applyForLeave)
+router.post('/update-apply-leave-status',Admin,updatedApplyLeaveStatus)
 router.post('/get-applied-leaves',Admin,getAppliedLeaves)
 module.exports = router;

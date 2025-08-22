@@ -144,15 +144,15 @@ exports.deleteShift = async (req, res) => {
 
 
 exports.generateDummyAttendance = async () => {
-  const tenantId = '7360976d-94ab-49b5-83b7-65fcfcf63830';   // sample tenant
-  const employeeId = 'c1fdd032-b4f8-489e-9ae3-101f03045400'; // sample employee
+  const tenantId = '88e23215-4edf-49f8-8014-48cf4d3dd995';   // sample tenant
+  const employeeId = '585cea07-e835-4954-859e-30b826291d36'; // sample employee
   const createdBy = employeeId;
   const updatedBy = employeeId;
 
   const attendances = [];
 
-  for (let day = 1; day <= 28; day++) {
-    const date = moment(`2026-02-${day}`, "YYYY-MM-DD");
+  for (let day = 1; day <= 31; day++) {
+    const date = moment(`2025-08-${day}`, "YYYY-MM-DD");
 
     // Skip Sundays (or Saturdays+Sundays if required)
     //if (date.day() === 0) continue; // Sunday only
@@ -169,6 +169,7 @@ exports.generateDummyAttendance = async () => {
       check_in_time: checkIn,
       check_out_time: checkOut,
       is_present: true,
+      date:date.format('YYYY-MM-DD'),
       createdBy,
       updatedBy,
     });

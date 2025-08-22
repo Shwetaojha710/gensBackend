@@ -141,4 +141,71 @@ Helper.dateFormat = (date) => {
 
 }
 
+Helper.applySandwichRule = (leaveRecords, holidays, startDate, endDate) => {
+  let updatedRecords = [...leaveRecords];
+
+  // Convert leaveRecords into a Set of leave dates for quick lookup
+  let leaveDates = new Set();
+  for (const leave of leaveRecords) {
+    let start = moment(leave.fromDate);
+    let end = moment(leave.toDate);
+    for (let d = moment(start); d <= end; d.add(1, "days")) {
+      leaveDates.add(d.format("YYYY-MM-DD"));
+    }
+  }
+
+  for (let d = moment(startDate); d <= endDate; d.add(1, "days")) {
+    const dateKey = d.format("YYYY-MM-DD");
+
+    // skip if already leave
+    if (leaveDates.has(dateKey)) continue;
+
+    const isHoliday = holidays.includes(dateKey) || d.day() === 0 || d.day() === 6;
+    if (!isHoliday) continue;
+
+    // find nearest previous leave
+    let prev = moment(d).subtract(1, "days");
+    while (prev >= startDate) {
+      const prevKey = prev.format("YYYY-MM-DD");
+      if (leaveDates.has(prevKey)) break;
+      if (!(holidays.includes(prevKey) || prev.day() === 0 || prev.day() === 6)) {
+        prev = null;
+        break;
+      }
+      prev.subtract(1, "days");
+    }
+
+    // find nearest next leave
+    let next = moment(d).add(1, "days");
+    while (next <= endDate) {
+      const nextKey = next.format("YYYY-MM-DD");
+      if (leaveDates.has(nextKey)) break;
+      if (!(holidays.includes(nextKey) || next.day() === 0 || next.day() === 6)) {
+        next = null;
+        break;
+      }
+      next.add(1, "days");
+    }
+
+    // if leave exists on both sides → mark as sandwich leave
+    if (prev && next) {
+      updatedRecords.push({
+        id: null,
+        employeeId: leaveRecords[0].employeeId,
+        leaveTypeId: null,
+        fromDate: dateKey,
+        toDate: dateKey,
+        duration_type: "full",
+        isSandwich: true,
+       tenantId:leaveRecords[0].tenantId,
+       leaveTypeId:leaveRecords[0].leaveTypeId
+      });
+      leaveDates.add(dateKey);
+    }
+  }
+
+  return updatedRecords;
+};
+
+
 module.exports = Helper;

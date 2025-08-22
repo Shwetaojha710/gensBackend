@@ -10,6 +10,7 @@ const Holiday = require("../../models/holiday");
 const holiday = require("../../models/holiday");
 const path = require("path");
 const fs = require("fs");
+const HolidayType = require("../../models/HolidayType");
 exports.attendanceMaster = async (req, res) => {
   const {
     lateAllowanceMin,
@@ -690,7 +691,7 @@ exports.addHoliday = async (req, res) => {
 
 exports.getHolidayList = async (req, res) => {
   try {
-    const data = await Holiday.findAll({
+    const holidayData = await Holiday.findAll({
       where: {
         tenantId: req.users?.tenantId,
         status: "active",
@@ -711,6 +712,20 @@ exports.getHolidayList = async (req, res) => {
       order: [["createdAt", "desc"]],
       raw: true,
     });
+
+    const data = await Promise.all(
+      holidayData.map(async(item)=>{
+          const holidayname= await HolidayType.findOne({
+            where:{
+              id:item?.holiday_type
+            }
+          })
+          return{
+            ...item,
+            holiday_type_name:holidayname?.name
+          }
+      })
+    )
 
     return Helper.response(true, "Record Found Successfully!", data, res, 200);
   } catch (err) {
