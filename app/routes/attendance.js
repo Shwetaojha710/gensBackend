@@ -3,7 +3,8 @@ const Admin = require('../middleware/auth');
 const { attendanceMaster, getAttendanceSettings, updateAttendanceSettings, getMonthlyAttendance, getAttendanceYears,getDateWiseAttendance
   ,addHoliday,getHolidayList,updateHoliday,deleteHoliday,
   deleteAttendance,
-  updateAttendance} = require('../controller/tenant/attendance');
+  updateAttendance,
+  addAttendance} = require('../controller/tenant/attendance');
 const upload = require('../middleware/upload');
 const router = express.Router();
 
@@ -13,6 +14,7 @@ router.post('/update-attendance-setting',Admin,updateAttendanceSettings);
 router.post('/get-emp-attendance',Admin,getMonthlyAttendance)
 router.post('/get-date-wise-attendance',Admin,getDateWiseAttendance)
 router.post('/get-attendance-year',Admin,getAttendanceYears)
+router.post('/add-attendance',Admin,addAttendance);
 router.post('/update-attendance',Admin,updateAttendance);
 router.post('/delete-attendance',Admin,deleteAttendance);
 

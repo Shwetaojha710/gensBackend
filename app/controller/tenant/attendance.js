@@ -624,6 +624,77 @@ exports.deleteAttendance = async (req, res) => {
   }
 };
 
+exports.addAttendance = async (req, res) => {
+  const { empCode, check_in_time, date } = req.body;
+  const tenantId = req.users?.tenantId;
+
+  try {
+    if (!tenantId || !empCode || !date) {
+      Helper.deleteUploadedFiles(req.files);
+      return Helper.response(false, "TenantId, empCode and date are required.", [], res, 400);
+    }
+
+    
+    const employeedetails = await empPersonal.findOne({
+      where: { empCode, tenantId, status: 'active' },
+      attributes: ['id']
+    });
+
+    if (!employeedetails) {
+      return Helper.response(false, "Employee not found", [], res, 404);
+    }
+
+    const employeeId = employeedetails.id;
+    const ip_address = Helper.getIpAddress(req);
+
+   
+    let existingAttendance = await attendance.findOne({
+      where: { employeeId, date, tenantId }
+    });
+
+    if (existingAttendance) {
+   
+      await existingAttendance.update({
+        check_out_time: check_in_time || existingAttendance.check_out_time,
+        is_present: true, 
+        ip_address,
+        updatedBy:req.users?.id
+      });
+
+      return Helper.response(
+        true,
+        "Attendance updated successfully (Check-out)",
+        existingAttendance,
+        res,
+        200
+      );
+    } else {
+     
+      const createAttendance = await attendance.create({
+        employeeId,
+        tenantId,
+        check_in_time,
+        is_present: true,
+        date,
+        ip_address,
+        createdBy:req.users?.id
+      });
+
+      return Helper.response(
+        true,
+        "Attendance added successfully (Check-in)",
+        createAttendance,
+        res,
+        200
+      );
+    }
+  } catch (error) {
+    console.error("Error adding/updating attendance:", error);
+    return Helper.response(false, error?.message, null, res, 500);
+  }
+};
+
+
 exports.addHoliday = async (req, res) => {
   const { holiday_type, holiday_name, date, status } = req.body;
   const tenantId = req.users?.tenantId;

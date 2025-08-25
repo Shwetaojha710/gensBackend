@@ -4,6 +4,7 @@ const leaveBalance = require("../../models/leaveBalance");
 const leave_application = require("../../models/leave_application");
 const moment = require("moment");
 const empPersonal = require("../../models/empPersonal");
+const leave_balance = require("../../models/leaveBalance");
 
 
 exports.createLeave = async (req, res) => {
@@ -281,19 +282,49 @@ exports.getAppliedLeaves = async (req, res) => {
 
 
 exports.updatedApplyLeaveStatus = async (req, res) => {
-    const { id, employeeId, leaveType, status,reason } = req.body
+    const { id, employeeId, leaveTypeId, status,reason ,days,appliedOn} = req.body
     const tenantId = req.users && req.users.tenantId;
     try {
-
+         const year = new Date(appliedOn).getFullYear();
+        const leaveBalance=await leave_balance.findOne({
+            where:{
+                tenantId,
+                leaveTypeId:leaveTypeId,
+                employeeId,
+                year
+            }
+        })
+        if(!leaveBalance){
+            return Helper.response(false, "Assigned Leave First", [], res, 400);
+        }
         const existingLeave = await leave_application.findOne({ where: { id } })
 
 
         existingLeave.status = status
         existingLeave.reason = reason
         existingLeave.updatedBy = req.users && req.users.id
-
-
+        existingLeave.approverId=req.users&&req.users.id
+       
+         let remainingLeaves
         if (await existingLeave.save()) {
+            if(leaveBalance.remainingLeaves<Number(days)){
+               remainingLeaves=0
+            }else{
+                remainingLeaves=leaveBalance.remainingLeaves-Number(days)
+            }
+        
+            const updateleavebalance= await leave_balance.update({
+                   usedLeaves:days,
+                   remainingLeaves,
+                   updatedBy:req.users?.id
+            },{
+           where:{
+               tenantId,
+                leaveTypeId:leaveTypeId,
+                employeeId,
+                year
+           }
+            })
             return Helper.response(true, "Leave updated successfully.", existingLeave, res, 200);
         }
         return Helper.response(false, "Failed to create leave.", [], res, 400);

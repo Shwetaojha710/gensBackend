@@ -12,7 +12,7 @@ const Admin = async (req, res, next) => {
  
       const decoded = await Helper.verifyToken(token);
       if (!decoded) {
-        return Helper.response(false, "Invalid token", {}, res, 200);
+        return Helper.response("expired", "Invalid token", {}, res, 200);
       }
  
       const user = await users.findOne({ where: { id: decoded.id } });

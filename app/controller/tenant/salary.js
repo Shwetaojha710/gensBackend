@@ -11,6 +11,8 @@ const leave_balance = require("../../models/leaveBalance");
 const holiday = require("../../models/holiday");
 const allowance = require("../../models/allowance");
 const deduction = require("../../models/deductions");
+const bill_info = require("../../models/bill_info");
+const bill = require("../../models/bill");
 
 //commented by me
 // exports.calculateAttendance = async (req, res) => {
@@ -784,7 +786,13 @@ exports.calculateSalaryComponent = async (req, res) => {
     const tenantId = req.users?.tenantId;
 
     if (!tenantId || !employeeId) {
-      return Helper.response(false, "TenantId and employeeId required", [], res, 400);
+      return Helper.response(
+        false,
+        "TenantId and employeeId required",
+        [],
+        res,
+        400
+      );
     }
 
     // reusable function to fetch and transform
@@ -795,8 +803,10 @@ exports.calculateSalaryComponent = async (req, res) => {
         order: [["createdAt", "desc"]],
       });
 
-      return data.map(item => {
-        const payAmount = Math.round((item.finalAmount / totalDaysInMonth) * fullDays);
+      return data.map((item) => {
+        const payAmount = Math.round(
+          ((item.finalAmount/12) / totalDaysInMonth) * fullDays
+        );
         return {
           ...item,
           pay_code: payCode,
@@ -821,3 +831,203 @@ exports.calculateSalaryComponent = async (req, res) => {
     return Helper.response(false, error?.message, [], res, 500);
   }
 };
+
+exports.generateSalary = async (req, res) => {
+  const t = await bill_info.sequelize.transaction();
+  const tenantId = req.users?.tenantId;
+  const createdBy = req.users?.id;
+
+  try {
+    const employees = req.body;
+
+    if (!tenantId || !employees || employees.length === 0) {
+      return Helper.response(false, "Required fields are missing", {}, res, 400);
+    }
+
+    const skippedEmployees = [];
+    const billRecords = [];     // For bill (summary)
+    const billInfoRecords = []; // For bill_info (components)
+
+    for (const emp of employees) {
+      if (!emp.employeeId || !emp.components) continue;
+
+      // Check if salary already exists for this employee/month
+      const existing = await bill.findOne({
+        where: {
+          tenantId,
+          employeeId: emp.employeeId,
+          year: Number(emp.year),
+          month: Number(emp.month),
+        },
+        transaction: t,
+      });
+
+      if (existing) {
+        skippedEmployees.push({
+          employeeId: emp.employeeId,
+          year: emp.year,
+          month: emp.month,
+          reason: "Salary already generated",
+        });
+        continue;
+      }
+
+      // --- Insert into bill (summary)
+      const billData = {
+        tenantId,
+        employeeId: emp.employeeId,
+        year: Number(emp.year),
+        month: Number(emp.month),
+        bill_date: new Date(),
+        net_amount: parseInt(emp.TotalSalary), // from payload
+        full_days: emp?.fullDays || 0,
+        absent_days: emp?.absentDays || 0,
+        hours_worked: emp?.hoursWorked || null,
+        bill_desc: "Auto-generated salary",
+        status: "active",
+        createdBy,
+      };
+
+      const billRow = await bill.create(billData, { transaction: t });
+
+      // --- Insert into bill_info (component breakdown)
+      emp.components.forEach((comp) => {
+        billInfoRecords.push({
+          tenantId,
+          employeeId: emp.employeeId,
+          year: Number(emp.year),
+          month: Number(emp.month),
+          bill_date: new Date(),
+          bill_id: billRow.bill_id,  // link bill_info → bill
+          pay_component_id: comp.id,
+          pay_code: comp.pay_code,
+          amount: comp.pay_amount,
+          status: "active",
+          createdBy,
+        });
+      });
+
+      billRecords.push(billRow);
+    }
+
+    // Save all bill_info rows
+    if (billInfoRecords.length > 0) {
+      await bill_info.bulkCreate(billInfoRecords, { transaction: t });
+    }
+
+    await t.commit();
+
+    return Helper.response(true, "Salary generation completed", {
+      generatedCount: billRecords.length,
+      skippedCount: skippedEmployees.length,
+      skippedEmployees,
+      generatedSalaries: billRecords,
+    }, res, 200);
+
+  } catch (error) {
+    await t.rollback();
+    console.error("Error saving salaries:", error);
+    return Helper.response(false, error?.message, [], res, 500);
+  }
+};
+
+
+// exports.generateSalary = async (req, res) => {
+//   const t = await bill_info.sequelize.transaction();
+//   const tenantId = req.users?.tenantId;
+//   const createdBy = req.users?.id;
+
+//   try {
+//     const employees = req.body; 
+
+//     if (!tenantId || !employees || employees.length === 0) {
+//       return Helper.response(
+//         false,
+//         "Required fields are missing",
+//         {},
+//         res,
+//         400
+//       );
+//     }
+
+//     const records = [];
+//     const skippedEmployees = [];
+
+//     for (const emp of employees) {
+//       if (!emp.employeeId || !emp.components) continue;
+
+      
+//       const existing = await bill_info.findOne({
+//         where: {
+//           tenantId,
+//           employeeId: emp.employeeId,
+//           year: Number(emp.year),
+//           month: Number(emp.month),
+//         },
+//         transaction: t,
+//       });
+
+//       if (existing) {
+//         skippedEmployees.push({
+//           employeeId: emp.employeeId,
+//           year: emp.year,
+//           month: emp.month,
+//           reason: "Salary already generated",
+//         });
+//         continue; 
+//       }
+
+    
+//       emp.components.forEach((comp) => {
+//         records.push({
+//           tenantId,
+//           employeeId: emp.employeeId,
+//           year: Number(emp.year),
+//           month: Number(emp.month),
+//           bill_date: new Date(),
+
+//           pay_component_id: comp.id,
+//           pay_code: comp.pay_code,
+//           amount: comp.pay_amount,
+//           net_amount: parseInt(comp.finalAmount),
+
+//           full_days: emp?.fullDays || 0,
+//           absent_days: emp?.absentDays || 0,
+//           hours_worked: emp?.hoursWorked || null,
+
+//           bill_desc: "Auto-generated salary",
+//           status: "active",
+//           createdBy,
+//         });
+//       });
+//     }
+
+//     if (records.length === 0) {
+//       await t.rollback();
+     
+//       return Helper.response(
+//         false,
+//         "All selected employees already have salary generated",
+//         skippedEmployees,
+//         res,
+//         400
+//       );
+//     }
+
+//         const billcreate = await bill.bulkCreate(records, { transaction: t });
+//     const bills = await bill_info.bulkCreate(records, { transaction: t });
+//     await t.commit();
+
+//     const data = {
+//       generatedCount: bills.length,
+//       skippedCount: skippedEmployees.length,
+//       skippedEmployees,
+//       generatedSalaries: bills,
+//     };
+//     return Helper.response(true, "Salary generation completed", data, res, 200);
+//   } catch (error) {
+//     await t.rollback();
+//     console.error("Error saving salaries:", error);
+//     return Helper.response(false, error?.message, [], res, 500);
+//   }
+// };

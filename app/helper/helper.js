@@ -217,7 +217,8 @@ Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
     const matchingRecords = leaveRecordsArr.filter(
       (rec) =>
         rec.employeeId == balance.employeeId &&
-        rec.leaveTypeId == balance.leaveTypeId
+        rec.leaveTypeId == balance.leaveTypeId &&
+        balance.status == 'approved'
     );
 
     if (matchingRecords.length > allowed) {
@@ -233,5 +234,12 @@ Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
 
   return toRemove;
 }
+Helper.getIpAddress = (req) => {
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0] ||
+    req.socket?.remoteAddress || 
+    null
+  );
+};
 
 module.exports = Helper;
