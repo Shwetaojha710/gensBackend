@@ -1,9 +1,11 @@
 const empPersonal = require("../../models/empPersonal");
 const Helper = require("../../helper/helper");
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 const EmploymentType = require("../../models/employmentType");
-
+const Prefix = require("../../models/prefix");
+const { Op } = require("sequelize");
+const designation = require("../../models/designation");
 exports.createEmp = async (req, res) => {
   const {
     firstName,
@@ -29,7 +31,10 @@ exports.createEmp = async (req, res) => {
     state,
     status,
     empCode,
-    empType
+    empType,
+    designationId,
+    departmentId,
+    joiningDate,
   } = req.body;
 
   const image = req.file ? req.file.filename : null;
@@ -52,8 +57,11 @@ exports.createEmp = async (req, res) => {
     !bloodGroup ||
     !nationality ||
     !pinCode ||
-    !state||
-    !empType
+    !state ||
+    !empType ||
+    !departmentId ||
+    !designationId ||
+    !joiningDate
   ) {
     return Helper.response(false, "All fields must be provided", [], res, 400);
   }
@@ -123,6 +131,18 @@ exports.createEmp = async (req, res) => {
   }
 
   try {
+    const maxuser = await empPersonal.count();
+    const getprefix = await Prefix.findOne({
+      where: {
+        tenantId,
+        status: "active",
+      },
+    });
+
+    const empCode = `${getprefix.name}${(maxuser + 1)
+      .toString()
+      .padStart(4, "0")}`;
+
     const newEmp = await empPersonal.create({
       tenantId,
       firstName,
@@ -143,6 +163,10 @@ exports.createEmp = async (req, res) => {
       bloodGroup,
       nationality,
       pinCode,
+      joiningDate,
+      empCode,
+      departmentId,
+      designationId,
       state,
       city,
       country,
@@ -151,7 +175,7 @@ exports.createEmp = async (req, res) => {
       updatedBy: req.users && req.users.id,
       profileImage: image,
       empCode,
-      empType:empType
+      empType: empType,
     });
 
     return Helper.response(
@@ -176,6 +200,33 @@ exports.getEmp = async (req, res) => {
       return Helper.response(false, "Tenant ID is required", [], res, 400);
     }
 
+    const totalEmployee = await empPersonal.count({ where: { tenantId } });
+   
+    const ActiveEmployee = await empPersonal.count({
+      where: { tenantId, status: "active" },
+    });
+   
+    const InactiveEmployee = await empPersonal.count({
+      where: { tenantId, status: "inactive" },
+    });
+   
+    const newJoiners = await empPersonal.count({
+      where: {
+        tenantId,
+        status: "active",
+        createdAt: {
+          [Op.gte]: new Date(new Date().setDate(new Date().getDate() - 30)),
+        },
+      },
+    });
+ 
+    const cardData = {
+      totalEmployee,
+      ActiveEmployee,
+      InactiveEmployee,
+      newJoiners,
+    };
+
     if (email) {
       const emp = await empPersonal.findOne({
         where: { email, tenantId },
@@ -184,19 +235,22 @@ exports.getEmp = async (req, res) => {
       if (!emp) {
         return Helper.response(false, "Employee not found", [], res, 404);
       }
-     const emptypes=await EmploymentType.findOne({
+      const emptypes = await EmploymentType.findOne({
         where: { id: emp.empType, tenantId },
       });
       const formattedEmp = {
         ...emp.toJSON(),
         createdAt: Helper.formatToIST(emp.createdAt, "YYYY-MM-DD HH:mm:ss"),
-        emptypename: emptypes? emptypes.name : null,
+        emptypename: emptypes ? emptypes.name : null,
       };
 
       return Helper.response(
         true,
         "Employee fetched successfully",
-        formattedEmp,
+        {
+          formattedEmp,
+          cardData,
+        },
         res,
         200
       );
@@ -207,30 +261,37 @@ exports.getEmp = async (req, res) => {
         order: [["createdAt", "DESC"]],
       });
 
-const formattedEmps = await Promise.all(
-  emps.map(async (emp,i) => {
-    const emptypes = await EmploymentType.findOne({
-      where: { id: emp.empType, tenantId },
-    });
-    return {
-      ...emp,
-      createdAt: Helper.formatToIST(emp.createdAt, "YYYY-MM-DD HH:mm:ss"),
-      emptypename: emptypes ? emptypes.name : null,
-    };
-  })
-);
+      const formattedEmps = await Promise.all(
+        emps.map(async (emp, i) => {
+          const emptypes = await EmploymentType.findOne({
+            where: { id: emp.empType, tenantId },
+          });
+          return {
+            ...emp,
+            createdAt: Helper.formatToIST(emp.createdAt, "YYYY-MM-DD HH:mm:ss"),
+            emptypename: emptypes ? emptypes.name : null,
+            designation: emp.designationId ? await designation.findOne(
+              {
+                where: { id: emp.designationId, tenantId },
+                attributes: ['name'],
+                raw: true,
+              })?.name : null
+      
+          };
+        })
+      );
 
       return Helper.response(
         true,
         "Employees fetched successfully",
-        formattedEmps,
+        { formattedEmps, cardData },
         res,
         200
       );
     }
   } catch (error) {
     console.error("Error fetching employee:", error);
-    return Helper.response(false, "Internal server error", [], res, 500);
+    return Helper.response(false, error?.message, [], res, 500);
   }
 };
 
@@ -439,7 +500,7 @@ exports.deleteEmp = async (req, res) => {
     console.error("Error deleting employee:", error);
     return Helper.response(false, "Internal server error", [], res, 500);
   }
-}
+};
 
 exports.uploadImage = async (req, res) => {
   const { id } = req.body;
@@ -447,13 +508,17 @@ exports.uploadImage = async (req, res) => {
   const image = req.file ? req.file.filename : null;
 
   if (!tenantId || !id) {
-
     if (image) {
-
-      const filePath = path.join(__dirname, '../../../upload', image);
+      const filePath = path.join(__dirname, "../../../upload", image);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
-    return Helper.response(false, "Tenant ID and Employee ID are required", [], res, 400);
+    return Helper.response(
+      false,
+      "Tenant ID and Employee ID are required",
+      [],
+      res,
+      400
+    );
   }
 
   if (!image) {
@@ -463,17 +528,23 @@ exports.uploadImage = async (req, res) => {
   try {
     const emp = await empPersonal.findOne({ where: { id, tenantId } });
     if (!emp) {
-
-      const filePath = path.join(__dirname, '../../../upload', image);
+      const filePath = path.join(__dirname, "../../../upload", image);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       return Helper.response(false, "Employee not found", [], res, 404);
     }
 
-
     if (emp.profileImage) {
-      const oldImagePath = path.join(__dirname, '../../../upload', emp.profileImage);
+      const oldImagePath = path.join(
+        __dirname,
+        "../../../upload",
+        emp.profileImage
+      );
       if (fs.existsSync(oldImagePath)) {
-        try { fs.unlinkSync(oldImagePath); } catch (err) { /* ignore */ }
+        try {
+          fs.unlinkSync(oldImagePath);
+        } catch (err) {
+          /* ignore */
+        }
       }
     }
 
@@ -481,74 +552,111 @@ exports.uploadImage = async (req, res) => {
     emp.updatedBy = req.users && req.users.id;
     await emp.save();
 
-    return Helper.response(true, "Profile image updated successfully", emp, res, 200);
+    return Helper.response(
+      true,
+      "Profile image updated successfully",
+      emp,
+      res,
+      200
+    );
   } catch (error) {
     console.error("Error uploading profile image:", error);
 
     if (image) {
-      const filePath = path.join(__dirname, '../../../upload', image);
+      const filePath = path.join(__dirname, "../../../upload", image);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     return Helper.response(false, "Internal server error", [], res, 500);
   }
-}
+};
 
 exports.getUploadedImage = async (req, res) => {
   const { id } = req.body;
   const tenantId = req.users && req.users.tenantId;
 
   if (!tenantId || !id) {
-    return Helper.response(false, "Tenant ID and Employee ID are required", [], res, 400);
+    return Helper.response(
+      false,
+      "Tenant ID and Employee ID are required",
+      [],
+      res,
+      400
+    );
   }
 
   try {
-    const emp = await empPersonal.findOne({ where: { id, tenantId, status: "active" } });
+    const emp = await empPersonal.findOne({
+      where: { id, tenantId, status: "active" },
+    });
     if (!emp) {
       return Helper.response(false, "Employee not found", [], res, 404);
     }
 
     if (!emp.profileImage) {
-      return Helper.response(false, "No profile image found for this employee", [], res, 404);
+      return Helper.response(
+        false,
+        "No profile image found for this employee",
+        [],
+        res,
+        404
+      );
     }
 
-    const imagePath = path.join(__dirname, '../../../upload', emp.profileImage);
+    const imagePath = path.join(__dirname, "../../../upload", emp.profileImage);
     if (fs.existsSync(imagePath)) {
-      return Helper.response(true, "Profile image fetched successfully", emp.profileImage, res, 200);
+      return Helper.response(
+        true,
+        "Profile image fetched successfully",
+        emp.profileImage,
+        res,
+        200
+      );
     } else {
-      return Helper.response(false, "Profile image file does not exist", [], res, 404);
+      return Helper.response(
+        false,
+        "Profile image file does not exist",
+        [],
+        res,
+        404
+      );
     }
   } catch (error) {
     console.error("Error fetching profile image:", error);
     return Helper.response(false, "Internal server error", [], res, 500);
   }
-}
+};
 
 exports.employeeList = async (req, res) => {
-  const tenantId = req.users && req.users.tenantId
+  const tenantId = req.users && req.users.tenantId;
   try {
     if (!tenantId) {
-      return Helper.response(false, 'TenantId is required!', {}, res, 200)
+      return Helper.response(false, "TenantId is required!", {}, res, 200);
     }
     const employees = await empPersonal.findAll({
       where: {
-        tenantId
+        tenantId,
       },
-      attributes: ['id', 'firstName', 'lastName'],
-      order: [['firstName', 'ASC']]
-    })
+      attributes: ["id", "firstName", "lastName"],
+      order: [["firstName", "ASC"]],
+    });
 
     const dropdown = [
-      { label: 'All', value: 'All' },
-      ...employees.map(emp => ({
+      { label: "All", value: "All" },
+      ...employees.map((emp) => ({
         label: `${emp.firstName} ${emp.lastName}`,
-        value: emp.id
-      }))
+        value: emp.id,
+      })),
     ];
 
-    return Helper.response(true, "Employee list Fetched Successfully!", dropdown, res, 200);
-
+    return Helper.response(
+      true,
+      "Employee list Fetched Successfully!",
+      dropdown,
+      res,
+      200
+    );
   } catch (error) {
     console.error("Error fetching employee list:", error);
     return Helper.response(false, "Internal server error", [], res, 500);
   }
-}
+};

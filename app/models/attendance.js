@@ -23,6 +23,14 @@ const attendance = sequelize.define("attendance", {
         type: DataTypes.DATEONLY,
         allowNull: true,
     },
+    month: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    year: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
     check_in_time: {
         type: DataTypes.STRING(50),
         allowNull: true,

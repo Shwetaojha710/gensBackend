@@ -20,7 +20,7 @@ const sequelize = new Sequelize({
     port:process.env.DB_PORT,
     schema:process.env.DB_SCHEMA,
     timezone: '+05:30',    
-    logging: false, 
+    logging: true, 
 })  
 sequelize.authenticate().then(() => {
   console.log('connected');

@@ -403,8 +403,8 @@ exports.getDateWiseAttendance = async (req, res) => {
         where: {
           check_in_time: {
             [Op.between]: [
-              start.format("YYYY-MM-DD HH:mm:ss"),
-              end.format("YYYY-MM-DD HH:mm:ss"),
+               start.format("YYYY-MM-DD 00:00:00"),
+              end.format("YYYY-MM-DD 23:59:59"),
             ],
           },
           tenantId: tenantId,
@@ -427,8 +427,9 @@ exports.getDateWiseAttendance = async (req, res) => {
           employeeId: emp_id,
           check_in_time: {
             [Op.between]: [
-              start.format("YYYY-MM-DD HH:mm:ss"),
-              end.format("YYYY-MM-DD HH:mm:ss"),
+               start.format("YYYY-MM-DD 00:00:00"),
+              end.format("YYYY-MM-DD 23:59:59"),
+            
             ],
           },
         },
@@ -570,6 +571,8 @@ exports.updateAttendance = async (req, res) => {
     employeeExists.check_in_time = checkIn;
     employeeExists.check_out_time = checkOut;
     employeeExists.date = date;
+    employeeExists.month =new Date(date).getMonth()+1;
+    employeeExists.year = new Date(date).getFullYear();
     employeeExists.status = status || "active";
     await employeeExists.save();
 
@@ -658,7 +661,7 @@ exports.addAttendance = async (req, res) => {
         check_out_time: check_in_time || existingAttendance.check_out_time,
         is_present: true, 
         ip_address,
-        updatedBy:req.users?.id
+        updatedBy:req.users?.id,
       });
 
       return Helper.response(
@@ -677,7 +680,9 @@ exports.addAttendance = async (req, res) => {
         is_present: true,
         date,
         ip_address,
-        createdBy:req.users?.id
+        createdBy:req.users?.id,
+        month:new Date(check_in_time).getMonth()+1,
+        year:new Date(check_in_time).getFullYear()
       });
 
       return Helper.response(
@@ -937,5 +942,36 @@ exports.deleteHoliday = async (req, res) => {
   } catch (error) {
     console.error("Error deleting document:", error);
     return Helper.response(false, error?.message, null, res, 500);
+  }
+};
+
+// attendance.js
+exports.syncAttendance = async (req, res) => {
+  const { attendances } = req.body; // array of attendance objects
+  const tenantId = req.users?.tenantId;
+
+  try {
+    if (!attendances || attendances.length === 0) {
+      return res.status(400).json({ success: false, message: "No attendance data provided" });
+    }
+
+    const dataToInsert = attendances.map(item => ({
+      employeeId: item.employeeId,
+      date: item.date,
+      check_in_time: item.check_in_time,
+      check_out_time: item.check_out_time,
+      is_present: item.is_present,
+      ip_address: item.ip_address,
+      tenantId,
+      createdBy: req.users?.id,
+    }));
+
+    await Attendance.bulkCreate(dataToInsert, { ignoreDuplicates: true }); 
+    // `ignoreDuplicates` prevents re-inserting same records if synced again
+
+    return res.json({ success: true, message: "Attendance synced successfully" });
+  } catch (err) {
+    console.error("Sync error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };

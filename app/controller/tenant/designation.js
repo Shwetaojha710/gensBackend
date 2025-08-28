@@ -67,7 +67,7 @@ exports.getDesignation = async (req, res) => {
                 return Helper.response(false, 'Department not found', [], res, 404);
             }
 
-            designations = designations.filter(d => d.department === department);
+            designations = designations.filter(d => d.department == department);
             if (designations.length === 0) {
                 return Helper.response(false, 'No designations found for this department', [], res, 404);
             }
@@ -80,7 +80,7 @@ exports.getDesignation = async (req, res) => {
         const data = designations.map(desig => ({
             id:desig.id,
             name: desig.name,
-            departmentName: departmentNames.find(dep => dep.id === desig.department)?.name || 'Unknown',
+            departmentName: departmentNames.find(dep => dep.id == desig.department)?.name || 'Unknown',
             department: desig.department,
             status: desig.status,
             createdAt: Helper.formatToIST(desig.createdat || desig.createdAt, 'YYYY-MM-DD HH:mm:ss')
@@ -158,3 +158,38 @@ exports.deleteDesignation = async (req, res) => {
         return Helper.response(false, 'Internal server error', [], res, 500);
     }
 }
+
+exports.getDesignationDD = async (req, res) => {
+    const tenantId = req.users && req.users.tenantId;
+    const { department } = req.body || {};
+
+    try {
+        if (!tenantId) {
+            return Helper.response(false, 'Tenant ID is required', [], res, 400);
+        }
+
+        const tenant = await Tenant.findOne({ where: { id: tenantId } });
+        if (!tenant) {
+            return Helper.response(false, 'Tenant not found', [], res, 404);
+        }
+
+        const getDesignation = await Designation.findAll({
+                   where:{
+                     department,tenantId,
+                     status:'active'
+                   }
+        })
+       
+        const data = getDesignation.map(desig => ({
+            value:desig.id,
+            label: desig.name,
+           
+           
+        }));
+
+        return Helper.response(true, 'Designations fetched successfully', data, res, 200);
+    } catch (error) {
+        console.error('Error in getDesignation:', error);
+        return Helper.response(false, 'Internal server error', [], res, 500);
+    }
+};

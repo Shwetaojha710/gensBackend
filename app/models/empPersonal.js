@@ -104,8 +104,12 @@ const empPersonal = sequelize.define("empPersonal", {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  joindingDate: {
+  joiningDate: {
     type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  reportingPersonId: {
+    type: DataTypes.UUID,
     allowNull: true,
   },
   empType: {
@@ -132,6 +136,14 @@ const empPersonal = sequelize.define("empPersonal", {
     allowNull: true,
   },
   shift_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  designationId: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  departmentId: {
     type: DataTypes.UUID,
     allowNull: true,
   }

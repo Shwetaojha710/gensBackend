@@ -49,11 +49,12 @@ exports.login = async (req, res) => {
             { expiresIn: '8h' }
         );
 
-        // ✅ Store the token in the user record
+      
         await user.update({ token });
 
         const baseUrl = process.env.BASE_URL;
-        return Helper.response(true, 'You have Logged In Successfully!', {baseUrl, token, user }, res, 200);
+        const   PORT = process.env.SERVER_PORT ;
+        return Helper.response(true, 'You have Logged In Successfully!', {baseUrl, token, user,PORT }, res, 200);
 
     } catch (err) {
         console.error('Login error:', err);

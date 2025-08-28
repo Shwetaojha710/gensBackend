@@ -12,7 +12,7 @@ exports.createShift = async (req, res) => {
   for (const item of data) {
     const startTime = item.startTime;
     const endTime = item.endTime;
-    const isWeekOff = (item.startTime === "00:00:00" && item.endTime === "00:00:00") ? true : false;
+    const isWeekOff = (item.startTime == "00:00:00" && item.endTime == "00:00:00") ? true : false;
 
     let workingHours = 0;
     if (!isWeekOff) {
@@ -36,6 +36,7 @@ exports.createShift = async (req, res) => {
       createdBy: req.users && req.users.id,
       is_week_off: isWeekOff,
       workingHours: workingHours,
+      status: isWeekOff ? 'inactive' : 'active',
     };
 
     arrayPush.push(values);
@@ -145,7 +146,7 @@ exports.deleteShift = async (req, res) => {
 
 exports.generateDummyAttendance = async () => {
   const tenantId = '88e23215-4edf-49f8-8014-48cf4d3dd995';   // sample tenant
-  const employeeId = '585cea07-e835-4954-859e-30b826291d36'; // sample employee
+  const employeeId = '02cfad87-8201-4115-9249-e15c2f8f066d'; // sample employee
   const createdBy = employeeId;
   const updatedBy = employeeId;
 
@@ -170,6 +171,8 @@ exports.generateDummyAttendance = async () => {
       check_out_time: checkOut,
       is_present: true,
       date:date.format('YYYY-MM-DD'),
+      month:new Date(date).getMonth()+1,
+      year:new Date(date).getFullYear(),
       createdBy,
       updatedBy,
     });

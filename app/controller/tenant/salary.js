@@ -13,6 +13,7 @@ const allowance = require("../../models/allowance");
 const deduction = require("../../models/deductions");
 const bill_info = require("../../models/bill_info");
 const bill = require("../../models/bill");
+const Designation = require("../../models/designation");
 
 //commented by me
 // exports.calculateAttendance = async (req, res) => {
@@ -475,7 +476,7 @@ const bill = require("../../models/bill");
 // };
 
 exports.calculateAttendance = async (req, res) => {
-  const { employeeId, month, year } = req.body;
+  let { employeeId, month, year } = req.body;
   const tenantId = req.users && req.users.tenantId;
   let leavebalance;
   let data = [];
@@ -504,6 +505,22 @@ exports.calculateAttendance = async (req, res) => {
     const HALF_DAY_THRESHOLD = deduction.halfdayToAbsentMin; // hours
     const HALF_DAY_CUTOFF_MINUTES = deduction.halfDayThreshold; // minutes
     const lateAllowanceMin = deduction.lateAllowanceMin;
+
+    const employees = await bill.findAll({
+      where: {
+        employeeId: { [Op.in]: employeeId },
+        tenantId,
+        month,
+        year,
+      },
+      raw: true,
+      attributes: ["employeeId"],
+    });
+
+    employeeId = employeeId.filter((item) => {
+      return !employees.some((emp) => emp.employeeId == item);
+    });
+
     for (let i = 0; i < employeeId.length; i++) {
       const CtcValue = await Basic.findOne({
         where: {
@@ -660,14 +677,25 @@ exports.calculateAttendance = async (req, res) => {
         //     fullDays++;
         //     continue;
         // }
-        if (!shift || shift.is_week_off) {
-          fullDays++;
-          continue;
+        const getMonthlyAttendance = await attendance.findAll({
+          where: {
+            employeeId: employeeId[i],
+            tenantId,
+            month,
+            year,
+          },
+          raw: true,
+        });
+        if (getMonthlyAttendance && getMonthlyAttendance.length > 0) {
+          if (!shift || shift.is_week_off) {
+            fullDays++;
+            continue;
+          }
         }
 
         const attendances = await attendance.findOne({
           where: {
-            employeeId,
+            employeeId: employeeId[i],
             check_in_time: {
               [Op.between]: [startOfDayUTC, endOfDayUTC],
             },
@@ -697,7 +725,11 @@ exports.calculateAttendance = async (req, res) => {
             leaveType === "second_half"
           ) {
             halfDays++;
-          } else if (holidaydata) {
+          } else if (
+            getMonthlyAttendance &&
+            getMonthlyAttendance.length > 0 &&
+            holidaydata
+          ) {
             fullDays++;
           } else {
             absentDays++;
@@ -743,7 +775,7 @@ exports.calculateAttendance = async (req, res) => {
 
       const totalLeaveDays = Object.values(leaveDateMap1).reduce(
         (acc, type) => {
-          return acc + (type === "full" ? 1 : 0.5);
+          return acc + (type == "full" ? 1 : 0.5);
         },
         0
       );
@@ -805,7 +837,7 @@ exports.calculateSalaryComponent = async (req, res) => {
 
       return data.map((item) => {
         const payAmount = Math.round(
-          ((item.finalAmount/12) / totalDaysInMonth) * fullDays
+          (item.finalAmount / 12 / totalDaysInMonth) * fullDays
         );
         return {
           ...item,
@@ -841,11 +873,17 @@ exports.generateSalary = async (req, res) => {
     const employees = req.body;
 
     if (!tenantId || !employees || employees.length === 0) {
-      return Helper.response(false, "Required fields are missing", {}, res, 400);
+      return Helper.response(
+        false,
+        "Required fields are missing",
+        {},
+        res,
+        400
+      );
     }
 
     const skippedEmployees = [];
-    const billRecords = [];     // For bill (summary)
+    const billRecords = []; // For bill (summary)
     const billInfoRecords = []; // For bill_info (components)
 
     for (const emp of employees) {
@@ -898,7 +936,7 @@ exports.generateSalary = async (req, res) => {
           year: Number(emp.year),
           month: Number(emp.month),
           bill_date: new Date(),
-          bill_id: billRow.bill_id,  // link bill_info → bill
+          bill_id: billRow.bill_id, // link bill_info → bill
           pay_component_id: comp.id,
           pay_code: comp.pay_code,
           amount: comp.pay_amount,
@@ -917,13 +955,18 @@ exports.generateSalary = async (req, res) => {
 
     await t.commit();
 
-    return Helper.response(true, "Salary generation completed", {
-      generatedCount: billRecords.length,
-      skippedCount: skippedEmployees.length,
-      skippedEmployees,
-      generatedSalaries: billRecords,
-    }, res, 200);
-
+    return Helper.response(
+      true,
+      "Salary generation completed",
+      {
+        generatedCount: billRecords.length,
+        skippedCount: skippedEmployees.length,
+        skippedEmployees,
+        generatedSalaries: billRecords,
+      },
+      res,
+      200
+    );
   } catch (error) {
     await t.rollback();
     console.error("Error saving salaries:", error);
@@ -931,6 +974,121 @@ exports.generateSalary = async (req, res) => {
   }
 };
 
+exports.GeneratedSalaryList = async (req, res) => {
+  const tenantId = req.users?.tenantId;
+  const createdBy = req.users?.id;
+
+  try {
+    const { employeeId, month, year } = req.body;
+
+    if (!tenantId || !employeeId || employeeId.length === 0) {
+      return Helper.response(
+        false,
+        "Required fields are missing",
+        {},
+        res,
+        400
+      );
+    }
+
+    const GetSalaryList = await bill.findAll({
+      where: {
+        employeeId: { [Op.in]: employeeId },
+        month,
+        year,
+        tenantId,
+        status: "active",
+      },
+      order: [["createdAt", "desc"]],
+      raw: true,
+    });
+
+    if (GetSalaryList.length == 0) {
+      return Helper.response(false, "No Data Found", {}, res, 200);
+    }
+
+    const data = await Promise.all(
+      GetSalaryList.map(async (item) => {
+        const personaldetail = await empPersonal.findOne({
+          where: {
+            id: item?.employeeId,
+            status: "active",
+          },
+        });
+        // const Empdesignation=await Designation.findOne({
+        //   where:{
+        //     tenantId,
+        //     employeeId,
+        //     status:'active'
+        //   }
+        // })
+        return {
+          ...item,
+          employeeName: `${personaldetail?.firstName} ${personaldetail?.lastName}`,
+          empCode: personaldetail?.empCode,
+          email: personaldetail?.email,
+          phone: personaldetail?.mobile,
+          // 'designation':Empdesignation?.name
+        };
+      })
+    );
+    return Helper.response(true, "Salary generation completed", data, res, 200);
+  } catch (error) {
+    console.error("Error saving salaries:", error);
+    return Helper.response(false, error?.message, [], res, 500);
+  }
+};
+
+exports.revertSalary = async (req, res) => {
+  const tenantId = req.users?.tenantId;
+  const createdBy = req.users?.id;
+
+  const t = await bill.sequelize.transaction();
+
+  try {
+    const { employeeId, month, year, id, bill_id } = req.body;
+
+    if (!tenantId || !employeeId || !month || !year || !id || !bill_id) {
+      return Helper.response(
+        false,
+        "Required fields are missing",
+        {},
+        res,
+        400
+      );
+    }
+
+    const deleteBill = await bill.destroy({
+      where: { id },
+      transaction: t,
+    });
+
+    const deleteBillInfo = await bill_info.destroy({
+      where: {
+        bill_id,
+        month,
+        year,
+        employeeId,
+      },
+      transaction: t,
+    });
+
+    // if (deleteBill === 0 && deleteBillInfo === 0) {
+    //   await t.rollback();
+    //   return Helper.response(false, "No Data Found", {}, res, 200);
+    // }
+
+    await t.commit();
+
+    return Helper.response(true, "Salary reverted successfully", {}, res, 200);
+  } catch (error) {
+    if (!t.finished) {
+      await t.rollback();
+    }
+    console.error("Error reverting salary:", error);
+    return Helper.response(false, error?.message, [], res, 500);
+  }
+};
 
 // exports.generateSalary = async (req, res) => {
 //   const t = await bill_info.sequelize.transaction();
@@ -938,7 +1096,7 @@ exports.generateSalary = async (req, res) => {
 //   const createdBy = req.users?.id;
 
 //   try {
-//     const employees = req.body; 
+//     const employees = req.body;
 
 //     if (!tenantId || !employees || employees.length === 0) {
 //       return Helper.response(
@@ -956,7 +1114,6 @@ exports.generateSalary = async (req, res) => {
 //     for (const emp of employees) {
 //       if (!emp.employeeId || !emp.components) continue;
 
-      
 //       const existing = await bill_info.findOne({
 //         where: {
 //           tenantId,
@@ -974,10 +1131,9 @@ exports.generateSalary = async (req, res) => {
 //           month: emp.month,
 //           reason: "Salary already generated",
 //         });
-//         continue; 
+//         continue;
 //       }
 
-    
 //       emp.components.forEach((comp) => {
 //         records.push({
 //           tenantId,
@@ -1004,7 +1160,7 @@ exports.generateSalary = async (req, res) => {
 
 //     if (records.length === 0) {
 //       await t.rollback();
-     
+
 //       return Helper.response(
 //         false,
 //         "All selected employees already have salary generated",
