@@ -47,11 +47,21 @@ exports.createShift = async (req, res) => {
   }
 
   try {
+    const existingShifts = await Shift.findAll({
+      where: {
+        tenantId,
+        shift: arrayPush[0].shift
+      }
+    });
+    
+    if (existingShifts && existingShifts.length > 0) {
+      return Helper.response(false, "Shift with this name already exists", [], res, 400);
+    }
     const newShift = await Shift.bulkCreate(arrayPush);
     return Helper.response(true, "Shift created successfully", newShift, res, 201);
   } catch (error) {
     console.error("Error creating shift:", error);
-    return Helper.response(false, "Internal Server Error", [], res, 500);
+    return Helper.response(false, error?.message, [], res, 500);
   }
 };
 

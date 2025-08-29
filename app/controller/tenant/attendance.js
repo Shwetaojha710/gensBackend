@@ -857,53 +857,91 @@ exports.updateHoliday = async (req, res) => {
       return Helper.response(false, "Holiday not found", null, res, 404);
     }
 
-    if (!req.files || Object.keys(req.files).length === 0) {
-      return Helper.response(false, "No files uploaded", null, res, 400);
-    }
+    // if (!req.files || Object.keys(req.files).length === 0) {
+    //   return Helper.response(false, "No files uploaded", null, res, 400);
+    // }
 
     const updatedDocuments = [];
     let existingDoc;
-    for (const file of req.files) {
+    if(!req.files || Object.keys(req.files).length === 0){
       existingDoc = await holiday.findOne({
         where: { tenantId, id },
       });
 
       if (existingDoc) {
-        const oldFilePath = path.join(
-          __dirname,
-          "../../../upload",
-          existingDoc.image
-        );
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-
-        existingDoc.image = file.filename;
-        existingDoc.doc_type = file.mimetype;
         existingDoc.updatedBy = req.users?.id;
         existingDoc.updatedAt = new Date();
         existingDoc.holiday_type = holiday_type;
         existingDoc.holiday_name = holiday_name;
         existingDoc.date = date;
         existingDoc.status = status || "active";
+         existingDoc.image = null;
+        existingDoc.doc_type =null;
         await existingDoc.save();
 
-        // updatedDocuments.push(existingDoc);
-      } else {
-        const newDoc = await holiday.create({
-          tenantId,
-          holiday_type,
-          holiday_name,
-          date,
-          doc_type: file.mimetype,
-          image: file.filename,
-          createdBy: req.users?.id,
-          updatedBy: req.users?.id,
-          status: status || "active",
-        });
-        // updatedDocuments.push(newDoc);
+        return Helper.response(
+          true,
+          "Holiday updated successfully",
+          {},
+          res,
+          200
+        );
       }
     }
+for (const file of req.files) {
+  let existingDoc = await holiday.findOne({
+    where: { tenantId, id },
+  });
+
+  if (existingDoc) {
+    // ✅ Only build path if image is present
+    let oldFilePath = null;
+    if (existingDoc.image) {
+      oldFilePath = path.join(__dirname, "../../../upload", existingDoc.image);
+
+      // ✅ Delete old file if it exists
+      if (fs.existsSync(oldFilePath)) {
+        try {
+          fs.unlinkSync(oldFilePath);
+          console.log("Old file deleted:", oldFilePath);
+        } catch (err) {
+          console.error("Error deleting old file:", err);
+        }
+      } else {
+        console.log("Old file not found, skipping delete");
+      }
+    }
+
+    // ✅ Update with new file info
+    existingDoc.image = file.filename;
+    existingDoc.doc_type = file.mimetype;
+    existingDoc.updatedBy = req.users?.id;
+    existingDoc.updatedAt = new Date();
+    existingDoc.holiday_type = holiday_type;
+    existingDoc.holiday_name = holiday_name;
+    existingDoc.date = date;
+    existingDoc.status = status || "active";
+
+    await existingDoc.save();
+    console.log("New file uploaded:", file.filename);
+
+  } else {
+    // ✅ Create new record if not found
+    await holiday.create({
+      tenantId,
+      holiday_type,
+      holiday_name,
+      date,
+      doc_type: file.mimetype,
+      image: file.filename,
+      createdBy: req.users?.id,
+      updatedBy: req.users?.id,
+      status: status || "active",
+    });
+    console.log("New holiday record created with file:", file.filename);
+  }
+}
+
 
     return Helper.response(
       true,

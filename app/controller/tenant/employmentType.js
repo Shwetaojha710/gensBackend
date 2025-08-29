@@ -228,7 +228,9 @@ exports.editHolidayType = async (req, res) => {
         if (!employmentType) {
             return Helper.response(false, "Holiday Type not found", {}, res, 404);
         }
-
+        if(!name) {
+            return Helper.response(false, "Name is required", {}, res, 400);
+        }
 
         employmentType.name = name;
 
