@@ -25,8 +25,8 @@ exports.createWorkExp = async (req, res) => {
       return Helper.response(false, "Employee not found", null, res, 404);
     }
 
-    const formattedFrom = await Helper.dateFormat(from);
-    const formattedTo = to ? await Helper.dateFormat(to) : null;
+    // const formattedFrom = await Helper.dateFormat(from);
+    // const formattedTo = to ? await Helper.dateFormat(to) : null;
 
     const newWorkExp = await workExp.create({
       tenantId,
@@ -34,8 +34,8 @@ exports.createWorkExp = async (req, res) => {
       companyName,
       designation,
       description,
-      from: formattedFrom,
-      to: formattedTo,
+      from:from|| null,
+       to:to || null,
       status: status || 'active',
       createdBy: req.users && req.users.id,
       updatedBy: req.users && req.users.id
@@ -44,7 +44,7 @@ exports.createWorkExp = async (req, res) => {
     return Helper.response(true, "Work experience created successfully", newWorkExp, res, 201);
   } catch (err) {
     console.error("Error creating work experience:", err);
-    return Helper.response(false, "Internal server error", null, res, 500);
+    return Helper.response(false, err?.message, null, res, 500);
   }
 };
 
