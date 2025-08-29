@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin  = require('../middleware/auth');
+const {Admin}  = require('../middleware/auth');
 const { createShift, getShift, updateShift, deleteShift, generateDummyAttendance } = require('../controller/tenant/shift');
 
 router.post('/createShift',Admin, createShift);

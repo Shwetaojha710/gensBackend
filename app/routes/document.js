@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { addDocument, updateDocument, deleteDocument, getDocument, deleteDocumentField } = require('../controller/tenant/document');
 

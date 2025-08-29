@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { createDeductionMaster, getDeductionMaster, updateDeductionMaster } = require('../controller/tenant/deductions');
 
 router.post('/create-deduction-master', Admin, createDeductionMaster);

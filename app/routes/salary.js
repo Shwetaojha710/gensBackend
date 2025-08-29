@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin  = require('../middleware/auth');
+const {Admin}  = require('../middleware/auth');
 const { calculateAttendance ,calculateSalaryComponent, generateSalary, GeneratedSalaryList,revertSalary} = require('../controller/tenant/salary');
 
 router.post('/calculate-attendance', Admin, calculateAttendance);

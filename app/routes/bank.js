@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { createBankAccnt, getBankAccnt, updateBankAccnt, deleteBankAccnt } = require('../controller/tenant/bankAccnt');
 
 router.post('/createBank',Admin, createBankAccnt);

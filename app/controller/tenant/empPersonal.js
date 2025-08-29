@@ -6,6 +6,16 @@ const EmploymentType = require("../../models/employmentType");
 const Prefix = require("../../models/prefix");
 const { Op } = require("sequelize");
 const designation = require("../../models/designation");
+const attendance = require("../../models/attendance");
+const bill = require("../../models/bill");
+const bill_info = require("../../models/bill_info");
+const leave_application = require("../../models/leave_application");
+const Basic = require("../../models/basic");
+const Allowance = require("../../models/allowance");
+const deduction = require("../../models/deductions");
+const document = require("../../models/documents");
+const bankAccnt = require("../../models/bankAccnt");
+const leave_balance = require("../../models/leaveBalance");
 exports.createEmp = async (req, res) => {
   const {
     firstName,
@@ -35,6 +45,7 @@ exports.createEmp = async (req, res) => {
     designationId,
     departmentId,
     joiningDate,
+    reportingPersonId
   } = req.body;
 
   const image = req.file ? req.file.filename : null;
@@ -131,7 +142,7 @@ exports.createEmp = async (req, res) => {
   }
 
   try {
-    const maxuser = await empPersonal.count();
+    const maxuser = await empPersonal.count({tenantId});
     const getprefix = await Prefix.findOne({
       where: {
         tenantId,
@@ -155,6 +166,7 @@ exports.createEmp = async (req, res) => {
       dateOfBirth: new Date(dateOfBirth.split("/").reverse().join("-")),
       age,
       gender,
+      reportingPersonId,
       martialStatus,
       adhaarNo,
       panNo,
@@ -187,7 +199,7 @@ exports.createEmp = async (req, res) => {
     );
   } catch (error) {
     console.error("Error creating employee:", error);
-    return Helper.response(false, "Internal server error", error, res, 500);
+    return Helper.response(false, error?.errors[0]?.message, error, res, 500);
   }
 };
 
@@ -492,13 +504,23 @@ exports.deleteEmp = async (req, res) => {
     if (!emp) {
       return Helper.response(false, "Employee not found", [], res, 404);
     }
-
+     await attendance.destroy({ where: { employeeId:id, tenantId } });
+     await bill.destroy({ where: { employeeId:id,tenantId } });
+     await bill_info.destroy({ where: { employeeId: id, tenantId } });
+     await leave_application.destroy({ where: { employeeId: id, tenantId } });
+     await Basic.destroy({ where: { employeeId: id,tenantId } });
+     await Allowance.destroy({ where: { employeeId:id, tenantId } });
+    //  await deduction.destroy({ where: {employeeId: id, tenantId } });
+    //  await deduction.destroy({ where: { employeeId:id, tenantId } });
+     await bankAccnt.destroy({ where: { employeeId: id, tenantId } });
+     await document.destroy({ where: { employeeId: id, tenantId } });
+     await leave_balance.destroy({ where: { employeeId: id, tenantId } });
     await emp.destroy();
 
     return Helper.response(true, "Employee deleted successfully", [], res, 200);
   } catch (error) {
     console.error("Error deleting employee:", error);
-    return Helper.response(false, "Internal server error", [], res, 500);
+    return Helper.response(false, error?.message, [], res, 500);
   }
 };
 

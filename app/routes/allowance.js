@@ -1,5 +1,5 @@
 const express = require('express');
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { createAllowance, getAllowance, deleteAllowance, updateAllowance } = require('../controller/tenant/allowance');
 const router = express.Router();
 

@@ -11,6 +11,7 @@ const holiday = require("../../models/holiday");
 const path = require("path");
 const fs = require("fs");
 const HolidayType = require("../../models/HolidayType");
+const xlsx = require("xlsx");
 exports.attendanceMaster = async (req, res) => {
   const {
     lateAllowanceMin,
@@ -368,7 +369,13 @@ exports.getDateWiseAttendance = async (req, res) => {
   const { emp_id, startDate, endDate } = req.body;
   const tenantId = req.users && req.users.tenantId;
   if (!emp_id || !startDate) {
-    return Helper.response(false,"emp_id and date are required.",[],res,200);
+    return Helper.response(
+      false,
+      "emp_id and date are required.",
+      [],
+      res,
+      200
+    );
   }
 
   try {
@@ -403,7 +410,7 @@ exports.getDateWiseAttendance = async (req, res) => {
         where: {
           check_in_time: {
             [Op.between]: [
-               start.format("YYYY-MM-DD 00:00:00"),
+              start.format("YYYY-MM-DD 00:00:00"),
               end.format("YYYY-MM-DD 23:59:59"),
             ],
           },
@@ -427,9 +434,8 @@ exports.getDateWiseAttendance = async (req, res) => {
           employeeId: emp_id,
           check_in_time: {
             [Op.between]: [
-               start.format("YYYY-MM-DD 00:00:00"),
+              start.format("YYYY-MM-DD 00:00:00"),
               end.format("YYYY-MM-DD 23:59:59"),
-            
             ],
           },
         },
@@ -459,7 +465,6 @@ exports.getDateWiseAttendance = async (req, res) => {
       };
     });
 
-
     for (const emp of employees) {
       const recordMap = groupedRecords[emp.id] || {};
 
@@ -472,11 +477,13 @@ exports.getDateWiseAttendance = async (req, res) => {
         if (weekOffDays.includes(dayName)) {
           data.push({
             date: currentDate.format("YYYY-MM-DD"),
-            checkIn: '--',
-            checkOut: '--',
+            checkIn: "--",
+            checkOut: "--",
             status: "Week Off",
-            employee_name: Helper.capitalizeFirstLetter(`${emp.firstName} ${emp.lastName}`),
-            employeeId:emp?.id
+            employee_name: Helper.capitalizeFirstLetter(
+              `${emp.firstName} ${emp.lastName}`
+            ),
+            employeeId: emp?.id,
           });
         } else {
           // Here you can map data by date instead of day index
@@ -485,12 +492,14 @@ exports.getDateWiseAttendance = async (req, res) => {
           const entry = recordMap[dayKey];
           data.push({
             date: currentDate.format("YYYY-MM-DD"),
-            checkIn: entry?.checkIn.split(" ")[1] || '--',
-            checkOut: entry?.checkOut.split(" ")[1] || '--',
+            checkIn: entry?.checkIn.split(" ")[1] || "--",
+            checkOut: entry?.checkOut.split(" ")[1] || "--",
             status: entry?.status || "Absent",
             id: entry?.id,
-            employee_name: Helper.capitalizeFirstLetter(`${emp.firstName} ${emp.lastName}`),
-            employeeId:emp?.id
+            employee_name: Helper.capitalizeFirstLetter(
+              `${emp.firstName} ${emp.lastName}`
+            ),
+            employeeId: emp?.id,
           });
         }
 
@@ -533,9 +542,16 @@ exports.getAttendanceYears = async (req, res) => {
 };
 
 exports.updateAttendance = async (req, res) => {
-  const { id, status='active', checkIn, checkOut, date, employeeId } = req.body;
+  const {
+    id,
+    status = "active",
+    checkIn,
+    checkOut,
+    date,
+    employeeId,
+  } = req.body;
   const tenantId = req.users?.tenantId;
-  const ip_address = await Helper.getIpAddress(req)
+  const ip_address = await Helper.getIpAddress(req);
   try {
     if (!tenantId || !employeeId) {
       return Helper.response(
@@ -548,21 +564,27 @@ exports.updateAttendance = async (req, res) => {
     }
 
     const employeeExists = await attendance.findOne({
-      where: { employeeId: employeeId, tenantId,date },
+      where: { employeeId: employeeId, tenantId, date },
     });
     if (!employeeExists) {
       await attendance.create({
         employeeId,
         tenantId,
         status,
-       check_in_time: checkIn,
-        check_out_time:checkOut,
+        check_in_time: checkIn,
+        check_out_time: checkOut,
         date,
         ip_address,
-        createdBy:req.users?.id
-      })
+        createdBy: req.users?.id,
+      });
 
-    return Helper.response(true,"Atttendance updated successfully",{},res,200);
+      return Helper.response(
+        true,
+        "Atttendance updated successfully",
+        {},
+        res,
+        200
+      );
       // return Helper.response(false, "Atendance not found", null, res, 404);
     }
 
@@ -571,7 +593,7 @@ exports.updateAttendance = async (req, res) => {
     employeeExists.check_in_time = checkIn;
     employeeExists.check_out_time = checkOut;
     employeeExists.date = date;
-    employeeExists.month =new Date(date).getMonth()+1;
+    employeeExists.month = new Date(date).getMonth() + 1;
     employeeExists.year = new Date(date).getFullYear();
     employeeExists.status = status || "active";
     await employeeExists.save();
@@ -634,13 +656,18 @@ exports.addAttendance = async (req, res) => {
   try {
     if (!tenantId || !empCode || !date) {
       Helper.deleteUploadedFiles(req.files);
-      return Helper.response(false, "TenantId, empCode and date are required.", [], res, 400);
+      return Helper.response(
+        false,
+        "TenantId, empCode and date are required.",
+        [],
+        res,
+        400
+      );
     }
 
-    
     const employeedetails = await empPersonal.findOne({
-      where: { empCode, tenantId, status: 'active' },
-      attributes: ['id']
+      where: { empCode, tenantId, status: "active" },
+      attributes: ["id"],
     });
 
     if (!employeedetails) {
@@ -650,18 +677,16 @@ exports.addAttendance = async (req, res) => {
     const employeeId = employeedetails.id;
     const ip_address = Helper.getIpAddress(req);
 
-   
     let existingAttendance = await attendance.findOne({
-      where: { employeeId, date, tenantId }
+      where: { employeeId, date, tenantId },
     });
 
     if (existingAttendance) {
-   
       await existingAttendance.update({
         check_out_time: check_in_time || existingAttendance.check_out_time,
-        is_present: true, 
+        is_present: true,
         ip_address,
-        updatedBy:req.users?.id,
+        updatedBy: req.users?.id,
       });
 
       return Helper.response(
@@ -672,7 +697,6 @@ exports.addAttendance = async (req, res) => {
         200
       );
     } else {
-     
       const createAttendance = await attendance.create({
         employeeId,
         tenantId,
@@ -680,9 +704,9 @@ exports.addAttendance = async (req, res) => {
         is_present: true,
         date,
         ip_address,
-        createdBy:req.users?.id,
-        month:new Date(check_in_time).getMonth()+1,
-        year:new Date(check_in_time).getFullYear()
+        createdBy: req.users?.id,
+        month: new Date(check_in_time).getMonth() + 1,
+        year: new Date(check_in_time).getFullYear(),
       });
 
       return Helper.response(
@@ -698,7 +722,6 @@ exports.addAttendance = async (req, res) => {
     return Helper.response(false, error?.message, null, res, 500);
   }
 };
-
 
 exports.addHoliday = async (req, res) => {
   const { holiday_type, holiday_name, date, status } = req.body;
@@ -790,18 +813,18 @@ exports.getHolidayList = async (req, res) => {
     });
 
     const data = await Promise.all(
-      holidayData.map(async(item)=>{
-          const holidayname= await HolidayType.findOne({
-            where:{
-              id:item?.holiday_type
-            }
-          })
-          return{
-            ...item,
-            holiday_type_name:holidayname?.name
-          }
+      holidayData.map(async (item) => {
+        const holidayname = await HolidayType.findOne({
+          where: {
+            id: item?.holiday_type,
+          },
+        });
+        return {
+          ...item,
+          holiday_type_name: holidayname?.name,
+        };
       })
-    )
+    );
 
     return Helper.response(true, "Record Found Successfully!", data, res, 200);
   } catch (err) {
@@ -945,6 +968,61 @@ exports.deleteHoliday = async (req, res) => {
   }
 };
 
+exports.uploadAttendance = async (req, res) => {
+  const tenantId = req.users?.tenantId;
+
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!tenantId) {
+      return Helper.response(false, "Tenant ID are required", null, res, 400);
+    }
+    // Read Excel
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const jsonData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    if (!jsonData.length) {
+      return res.status(400).json({ message: "Excel file is empty" });
+    }
+
+  
+    const createdBy = req.user?.id || "33333333-3333-3333-3333-333333333333";
+    const ipAddress = (req.ip || "").replace("::ffff:", "");
+
+    // Map Excel rows into attendance format
+    const mappedData = jsonData.map((row) => {
+      const date = new Date(row.date);
+      return {
+        tenantId,
+        employeeId: row.employeeId,
+        ip_address: ipAddress,
+        date: row.date,
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
+        check_in_time: row.check_in_time || null,
+        check_out_time: row.check_out_time || null,
+        is_present: row.is_present =='P' ? true : false,
+        createdBy,
+        updatedBy: createdBy
+      };
+    });
+
+    // Bulk insert
+    await attendance.bulkCreate(mappedData, { ignoreDuplicates: true });
+
+   
+     return Helper.response(
+      true,
+      `${jsonData.length} attendance records uploaded successfully`,
+      null,
+      res,
+      200
+    );
+  } catch (err) {
+    console.error("Upload Error:", err);
+    return Helper.response(false, err?.message, null, res, 500);
+  }
+};
 // attendance.js
 exports.syncAttendance = async (req, res) => {
   const { attendances } = req.body; // array of attendance objects
@@ -952,10 +1030,12 @@ exports.syncAttendance = async (req, res) => {
 
   try {
     if (!attendances || attendances.length === 0) {
-      return res.status(400).json({ success: false, message: "No attendance data provided" });
+      return res
+        .status(400)
+        .json({ success: false, message: "No attendance data provided" });
     }
 
-    const dataToInsert = attendances.map(item => ({
+    const dataToInsert = attendances.map((item) => ({
       employeeId: item.employeeId,
       date: item.date,
       check_in_time: item.check_in_time,
@@ -966,10 +1046,13 @@ exports.syncAttendance = async (req, res) => {
       createdBy: req.users?.id,
     }));
 
-    await Attendance.bulkCreate(dataToInsert, { ignoreDuplicates: true }); 
+    await Attendance.bulkCreate(dataToInsert, { ignoreDuplicates: true });
     // `ignoreDuplicates` prevents re-inserting same records if synced again
 
-    return res.json({ success: true, message: "Attendance synced successfully" });
+    return res.json({
+      success: true,
+      message: "Attendance synced successfully",
+    });
   } catch (err) {
     console.error("Sync error:", err);
     return res.status(500).json({ success: false, message: "Server error" });

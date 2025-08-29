@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const {createDepartment, getDepartments, updateDepartment, deleteDepartment, departmentDD} = require('../controller/tenant/department');
 const { createPrefix, getPrefixs, updatePrefix, deletePrefix } = require('../controller/tenant/prefix');
 const { getDesignationDD } = require('../controller/tenant/designation');

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { getCountries, getCountryDD } = require('../controller/tenant/country');
 const { getCity, getCityDD } = require('../controller/tenant/city');
 const { getState, getStateDD } = require('../controller/tenant/state');

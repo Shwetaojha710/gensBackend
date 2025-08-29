@@ -14,9 +14,6 @@ exports.createEmploymentType = async (req, res) => {
             return Helper.response(false, "Name is required", {}, res, 400);
         }
 
-        if (!allowedNames.includes(name)) {
-            return Helper.response(false, `Name must be one of: ${allowedNames.join(', ')}`, {}, res, 400);
-        }
 
         const employmentTypeData = await EmploymentType.create({
             tenantId,

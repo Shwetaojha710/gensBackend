@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { addDocumentType, getDocumentTypes, updateDocumentType, deleteDocumentType, getdocumentDD } = require('../controller/tenant/documentType');
 
 router.post('/createDocumentType', Admin, addDocumentType);

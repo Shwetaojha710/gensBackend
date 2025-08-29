@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { getDashboardData } = require('../controller/tenant/dashboard');
 const {createEmploymentType, getEmploymentTypes, editEmploymentType, deleteEmploymentType, getEmpDD,deleteHolidayType,editHolidayType,getHolidayTypes,createHolidayType,getHolidayTypeDD} = require('../controller/tenant/employmentType');
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 
 router.post('/createEmpType', Admin, createEmploymentType);
 router.post('/getEmpTypes', Admin, getEmploymentTypes);

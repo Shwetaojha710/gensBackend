@@ -30,7 +30,7 @@ exports.getDashboardData = async (req, res) => {
       ActiveEmployee,
       totalMonthlyAttendance,
       todayAttendance,
-      allDesignation,
+      allDepartment,
       employeesCount,
       totalEmpList,
       HolidayList,
@@ -42,7 +42,7 @@ exports.getDashboardData = async (req, res) => {
       empPersonal.count({ where: { tenantId, status: "active" } }),
       attendance.count({ where: { month: todayMonth, year: todayYear, tenantId } }),
       attendance.count({ where: { date: todayDate, tenantId } }),
-      designation.findAll({
+      Department.findAll({
         where: { tenantId, status: "active" },
         attributes: ["id", "name"],
         raw: true,
@@ -90,8 +90,8 @@ exports.getDashboardData = async (req, res) => {
     ]);
 
     // Chart data
-    const categories = allDesignation.map((d) => d.name);
-    const values = allDesignation.map((d) => {
+    const categories = allDepartment.map((d) => d.name);
+    const values = allDepartment.map((d) => {
       const found = employeesCount.find((c) => c.designationId === d.id);
       return found ? parseInt(found.count, 10) : 0;
     });

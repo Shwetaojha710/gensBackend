@@ -1,5 +1,5 @@
 const express = require('express');
-const Admin = require('../middleware/auth');
+const {Admin} = require('../middleware/auth');
 const { createLeave, getLeaves, updatedLeave, destroy, assignLeave, getLeaveTypes, getLeaveByEmployee, applyForLeave, getAppliedLeaves, updatedApplyLeaveStatus } = require('../controller/tenant/leave');
 
 const router = express.Router();

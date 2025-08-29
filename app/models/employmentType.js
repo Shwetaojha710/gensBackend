@@ -12,7 +12,7 @@ const EmploymentType = sequelize.define('employmentType', {
         allowNull: false
     },
     name: {
-        type: DataTypes.ENUM('full-time', 'part-time', ),
+        type: DataTypes.STRING,
         allowNull: false
     },
     status: {

@@ -954,7 +954,20 @@ exports.generateSalary = async (req, res) => {
     }
 
     await t.commit();
-
+     if(billRecords.length==0){
+      return Helper.response(
+        false,
+        "Salary already generated for all selected employees",
+        {
+          generatedCount: billRecords.length,
+          skippedCount: skippedEmployees.length,
+          skippedEmployees,
+          generatedSalaries: billRecords,
+        },
+        res,
+        200
+      );
+     }
     return Helper.response(
       true,
       "Salary generation completed",

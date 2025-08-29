@@ -36,6 +36,10 @@ const User = sequelize.define('user', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    webcamtoken: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     createdBy: {
         type: DataTypes.UUID,
         allowNull: true,

@@ -49,12 +49,17 @@ exports.login = async (req, res) => {
             { expiresIn: '8h' }
         );
 
+        const webcamtoken = jwt.sign(
+            { id: user.id, tenantId: user.tenantId, role: user.role },
+            process.env.SECRET_KEY,
+            { expiresIn: '30d' }  
+        );
       
-        await user.update({ token });
+        await user.update({ token,webcamtoken });
 
         const baseUrl = process.env.BASE_URL;
         const   PORT = process.env.SERVER_PORT ;
-        return Helper.response(true, 'You have Logged In Successfully!', {baseUrl, token, user,PORT }, res, 200);
+        return Helper.response(true, 'You have Logged In Successfully!', {baseUrl, token, user,PORT,webcamtoken }, res, 200);
 
     } catch (err) {
         console.error('Login error:', err);
