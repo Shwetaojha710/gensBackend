@@ -109,7 +109,7 @@ exports.getDashboardData = async (req, res) => {
     };
 
     // Employees (avoid N+1 → batch fetch designations)
-    const desigMap = Object.fromEntries(allDesignation.map(d => [d.id, d.name]));
+    const desigMap = Object.fromEntries(allDepartment.map(d => [d.id, d.name]));
     const employees = totalEmpList.map((emp, index) => ({
       name: `${emp.firstName} ${emp.lastName}`,
       role: desigMap[emp.designationId] || "N/A",
