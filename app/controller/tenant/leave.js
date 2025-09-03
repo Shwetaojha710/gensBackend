@@ -14,7 +14,7 @@ exports.createLeave = async (req, res) => {
     try {
         const leave_master = new leaveMaster()
 
-        const existingLeave = await leaveMaster.findOne({ where: { leaveName, leaveCode } })
+        const existingLeave = await leaveMaster.findOne({ where: { leaveName, leaveCode,tenantId } })
         if (existingLeave) {
             return Helper.response(false, "Leave name or code already exists for this tenant.", [], res, 400);
         }
@@ -46,7 +46,9 @@ exports.getLeaves = async (req, res) => {
     const tenantId = req.users && req.users.tenantId;
 
     try {
-        const leaves = await leaveMaster.findAll()
+        const leaves = await leaveMaster.findAll({
+            where: { tenantId }
+        })
         return Helper.response(true, "Leave fetched successfully.", leaves, res, 200);
     } catch (error) {
         console.error("Error creating deduction:", error);
@@ -282,7 +284,7 @@ exports.getAppliedLeaves = async (req, res) => {
 
 
 exports.updatedApplyLeaveStatus = async (req, res) => {
-    const { id, employeeId, leaveTypeId, status,reason ,days,appliedOn} = req.body
+    let { id, employeeId, leaveTypeId, status,reason ,days,appliedOn} = req.body
     const tenantId = req.users && req.users.tenantId;
     try {
          const year = new Date(appliedOn).getFullYear();
@@ -311,20 +313,21 @@ exports.updatedApplyLeaveStatus = async (req, res) => {
                remainingLeaves=0
             }else{
                 remainingLeaves=leaveBalance.remainingLeaves-Number(days)
+                days=Number(leaveBalance.usedLeaves)+Number(days)
             }
         
-            const updateleavebalance= await leave_balance.update({
-                   usedLeaves:days,
-                   remainingLeaves,
-                   updatedBy:req.users?.id
-            },{
-           where:{
-               tenantId,
-                leaveTypeId:leaveTypeId,
-                employeeId,
-                year
-           }
-            })
+        //     const updateleavebalance= await leave_balance.update({
+        //            usedLeaves:days,
+        //            remainingLeaves,
+        //            updatedBy:req.users?.id
+        //     },{
+        //    where:{
+        //        tenantId,
+        //         leaveTypeId:leaveTypeId,
+        //         employeeId,
+        //         year
+        //    }
+        //     })
             return Helper.response(true, "Leave updated successfully.", existingLeave, res, 200);
         }
         return Helper.response(false, "Failed to create leave.", [], res, 400);

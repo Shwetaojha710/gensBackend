@@ -207,18 +207,43 @@ Helper.applySandwichRule = (leaveRecords, holidays, startDate, endDate) => {
   return updatedRecords;
 };
 
-Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
-  const toRemove = [];
+// Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
+//   const toRemove = [];
 
+//   leaveBalanceArr.forEach((balance) => {
+//     const allowed = balance.remainingLeaves ?? 0;
+
+//     // Find matching leave records for same employee + leaveType
+//     const matchingRecords = leaveRecordsArr.filter(
+//       (rec) =>
+//         rec.employeeId == balance.employeeId &&
+//         rec.leaveTypeId == balance.leaveTypeId &&
+//         balance.status == 'approved'
+//     );
+
+//     if (matchingRecords.length > allowed) {
+//       // Sort by fromDate (oldest first)
+//       const sorted = [...matchingRecords].sort(
+//         (a, b) => new Date(a.fromDate) - new Date(b.fromDate)
+//       );
+
+//       // Mark extra ones for removal
+//       toRemove.push(...sorted.slice(allowed));
+//     }
+//   });
+
+//   return toRemove;
+// }
+Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr) => {
   leaveBalanceArr.forEach((balance) => {
     const allowed = balance.remainingLeaves ?? 0;
 
-    // Find matching leave records for same employee + leaveType
+    // Find matching leave records for same employee + leaveType (only approved leaves matter)
     const matchingRecords = leaveRecordsArr.filter(
       (rec) =>
         rec.employeeId == balance.employeeId &&
         rec.leaveTypeId == balance.leaveTypeId &&
-        balance.status == 'approved'
+        rec.status == 'approved'
     );
 
     if (matchingRecords.length > allowed) {
@@ -227,13 +252,22 @@ Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr)=> {
         (a, b) => new Date(a.fromDate) - new Date(b.fromDate)
       );
 
-      // Mark extra ones for removal
-      toRemove.push(...sorted.slice(allowed));
+      // Allowed ones
+      //  remain approved, the rest become unpaid
+      sorted.slice(allowed).forEach((rec) => {
+        rec.leavestatus = "unpaid"; //  mark extra ones as unpaid
+      });
+    } else {
+      // ✅ Enough balance, keep them approved (or add your own logic here)
+      matchingRecords.forEach((rec) => {
+        rec.leavestatus = "approved"; // optional if you want to reset status
+      });
     }
   });
 
-  return toRemove;
-}
+  return leaveRecordsArr; // updated array
+};
+
 Helper.getIpAddress = (req) => {
   return (
     req.headers['x-forwarded-for']?.split(',')[0] ||
