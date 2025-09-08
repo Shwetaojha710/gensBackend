@@ -140,6 +140,7 @@ Helper.dateFormat = (date) => {
   return istDate.replace(/\b(am|pm)\b/, (match) => match.toUpperCase());
 
 }
+const { v4: uuidv4 } = require("uuid");
 
 Helper.applySandwichRule = (leaveRecords, holidays, startDate, endDate) => {
   let updatedRecords = [...leaveRecords];
@@ -190,13 +191,14 @@ Helper.applySandwichRule = (leaveRecords, holidays, startDate, endDate) => {
     // if leave exists on both sides → mark as sandwich leave
     if (prev && next) {
       updatedRecords.push({
-        id: null,
+        id: uuidv4(),
         employeeId: leaveRecords[0].employeeId,
-        leaveTypeId: null,
+        leaveTypeId: leaveRecords[0].leaveTypeId,
         fromDate: dateKey,
         toDate: dateKey,
         duration_type: "full",
         isSandwich: true,
+        status: leaveRecords[0].status,
        tenantId:leaveRecords[0].tenantId,
        leaveTypeId:leaveRecords[0].leaveTypeId
       });
@@ -246,23 +248,26 @@ Helper.adjustLeaveRecords = (leaveBalanceArr, leaveRecordsArr) => {
         rec.status == 'approved'
     );
 
-    if (matchingRecords.length > allowed) {
-      // Sort by fromDate (oldest first)
-      const sorted = [...matchingRecords].sort(
-        (a, b) => new Date(a.fromDate) - new Date(b.fromDate)
-      );
+  if (matchingRecords.length > allowed) {
+    // Sort by date
+    const sorted = [...matchingRecords].sort(
+      (a, b) => new Date(a.fromDate) - new Date(b.fromDate)
+    );
 
-      // Allowed ones
-      //  remain approved, the rest become unpaid
-      sorted.slice(allowed).forEach((rec) => {
-        rec.leavestatus = "unpaid"; //  mark extra ones as unpaid
-      });
-    } else {
-      // ✅ Enough balance, keep them approved (or add your own logic here)
-      matchingRecords.forEach((rec) => {
-        rec.leavestatus = "approved"; // optional if you want to reset status
-      });
-    }
+    // First N → approved
+    sorted.slice(0, allowed).forEach((rec) => {
+      rec.leavestatus = "approved";
+    });
+
+    // Remaining → unpaid
+    sorted.slice(allowed).forEach((rec) => {
+      rec.leavestatus = "unpaid";
+    });
+  } else {
+    matchingRecords.forEach((rec) => {
+      rec.leavestatus = "approved";
+    });
+  }
   });
 
   return leaveRecordsArr; // updated array

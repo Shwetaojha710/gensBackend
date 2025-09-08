@@ -549,7 +549,6 @@ exports.calculateAttendance = async (req, res) => {
         where: {
           tenantId,
           employeeId: employeeId[i],
-          dependent: "CTC",
           status: "active",
         },
       });
@@ -700,11 +699,14 @@ exports.calculateAttendance = async (req, res) => {
 
         const startOfDayUTC = `${dayStr} 00:00:00`;
         const endOfDayUTC = `${dayStr} 23:59:59`;
-
-        if (!shift || shift.is_week_off) {
+          if(!leaveDateMap[dayStr]){
+          if (!shift || shift.is_week_off) {
           fullDays++;
           continue;
         }
+          // }
+          }
+       
         const getMonthlyAttendance = await attendance.findAll({
           where: {
             employeeId: employeeId[i],
@@ -842,6 +844,9 @@ exports.calculateAttendance = async (req, res) => {
         basePay: basePay.toFixed(2),
         totalDeduction: (perMonthSalary - basePay).toFixed(2),
       });
+    }
+    if(data.length == 0){
+      return Helper.response(false, "Salary already generated for all selected employees", [], res, 400);
     }
     return Helper.response(true, "Data Found Successfully", data, res, 200);
   } catch (error) {
@@ -1077,7 +1082,7 @@ exports.generateSalary = async (req, res) => {
       await leave_balance.update(
         {
           usedLeaves:emp?.totalLeaveDays ,
-          remainingLeaves: emp?.allowedLeave - emp?.totalLeaveDays,
+          remainingLeaves: (emp?.allowedLeave - emp?.totalLeaveDays<0)?0:(emp?.allowedLeave - emp?.totalLeaveDays),
         },
         {
           where: { employeeId : emp?.employeeId,tenantId, year: emp?.year },
@@ -1092,7 +1097,7 @@ exports.generateSalary = async (req, res) => {
         year: Number(emp.year),
         month: Number(emp.month),
         bill_date: new Date(),
-        net_amount: parseInt(emp.TotalSalary), // from payload
+        net_amount: parseInt(emp.basePay), // from payload
         full_days: emp?.fullDays || 0,
         absent_days: emp?.absentDays || 0,
         hours_worked: emp?.hoursWorked || null,

@@ -106,9 +106,7 @@ exports.updateWorkExp = async (req, res) => {
       return Helper.response(false, "Work experience not found", null, res, 404);
     }
 
-    const formattedFrom = from ? await Helper.dateFormat(from) : workExperience.from;
-    const formattedTo = to ? await Helper.dateFormat(to) : workExperience.to;
-
+    //      m
     await workExperience.update({
       companyName,
       designation,

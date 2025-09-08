@@ -10,6 +10,7 @@ const holidayType = require("../../models/HolidayType.js");
 const leave_Application = require("../../models/leave_application.js");
 const leave_master = require("../../models/leaveMaster.js");
 const { Op } = require("sequelize");
+const Designation = require("../../models/designation.js");
 exports.getDashboardData = async (req, res) => {
   try {
     const { tenantId } = req.users;
@@ -31,6 +32,7 @@ exports.getDashboardData = async (req, res) => {
       totalMonthlyAttendance,
       todayAttendance,
       allDepartment,
+      allDesignation,
       employeesCount,
       totalEmpList,
       HolidayList,
@@ -47,13 +49,18 @@ exports.getDashboardData = async (req, res) => {
         attributes: ["id", "name"],
         raw: true,
       }),
+      Designation.findAll({
+        where: { tenantId, status: "active" },
+        attributes: ["id", "name"],
+        raw: true,
+      }),
       empPersonal.findAll({
         where: { tenantId, status: "active" },
         attributes: [
-          "designationId",
+          "departmentId",
           [Sequelize.fn("COUNT", Sequelize.col("empPersonal.id")), "count"],
         ],
-        group: ["designationId"],
+        group: ["departmentId"],
         raw: true,
         limit: 5,
       }),
@@ -92,12 +99,12 @@ exports.getDashboardData = async (req, res) => {
     // Chart data
     const categories = allDepartment.map((d) => d.name);
     const values = allDepartment.map((d) => {
-      const found = employeesCount.find((c) => c.designationId === d.id);
+      const found = employeesCount.find((c) => c.departmentId === d.id);
       return found ? parseInt(found.count, 10) : 0;
     });
 
     const chartOptions = {
-      series: [{ name: "basic", data: values }],
+      series: [{ name: "employee", data: values }],
       chart: { type: "bar", height: 320 },
       plotOptions: { bar: { horizontal: true, distributed: true } },
       dataLabels: { enabled: false },
@@ -109,7 +116,7 @@ exports.getDashboardData = async (req, res) => {
     };
 
     // Employees (avoid N+1 → batch fetch designations)
-    const desigMap = Object.fromEntries(allDepartment.map(d => [d.id, d.name]));
+    const desigMap = Object.fromEntries(allDesignation.map(d => [d.id, d.name]));
     const employees = totalEmpList.map((emp, index) => ({
       name: `${emp.firstName} ${emp.lastName}`,
       role: desigMap[emp.designationId] || "N/A",
@@ -136,7 +143,7 @@ exports.getDashboardData = async (req, res) => {
     const leaveTypeIds = leaveApplication.map(l => l.leaveTypeId);
     const empIds = leaveApplication.map(l => l.employeeId);
 
-    const [leaveTypes, leaveEmployees] = await Promise.all([
+    const [leaveTypes, leaveEmployees] = await Promise.all([  
       leave_master.findAll({
         where: { id: leaveTypeIds, tenantId },
         attributes: ["id", "leaveName"],

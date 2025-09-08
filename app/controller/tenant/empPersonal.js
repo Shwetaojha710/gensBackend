@@ -45,7 +45,8 @@ exports.createEmp = async (req, res) => {
     designationId,
     departmentId,
     joiningDate,
-    reportingPersonId
+    reportingPersonId,
+    shift_id
   } = req.body;
 
   const image = req.file ? req.file.filename : null;
@@ -72,7 +73,8 @@ exports.createEmp = async (req, res) => {
     !empType ||
     !departmentId ||
     !designationId ||
-    !joiningDate
+    !joiningDate||
+    !shift_id
   ) {
     return Helper.response(false, "All fields must be provided", [], res, 400);
   }
@@ -187,6 +189,7 @@ exports.createEmp = async (req, res) => {
       updatedBy: req.users && req.users.id,
       profileImage: image,
       empCode,
+      shift_id,
       empType: empType,
     });
 
@@ -327,12 +330,16 @@ exports.updateEmp = async (req, res) => {
     motherName,
     bloodGroup,
     nationality,
+    designationId,
+    departmentId,
+    shift_id,
     pinCode,
     country,
     city,
     empType,
     state,
     status,
+    reportingPersonId
   } = req.body;
 
   const image = req.file ? req.file.filename : null;
@@ -466,6 +473,10 @@ exports.updateEmp = async (req, res) => {
     if (currentAddress) updateData.currentAddress = currentAddress;
     if (image) updateData.profileImage = image;
     if (empType) updateData.empType = empType;
+    if (designationId) updateData.designationId = designationId;
+    if (departmentId) updateData.departmentId = departmentId;
+    if (shift_id) updateData.shift_id = shift_id;
+    if (reportingPersonId) updateData.reportingPersonId = reportingPersonId;
 
     updateData.updatedBy = req.users && req.users.id;
 
